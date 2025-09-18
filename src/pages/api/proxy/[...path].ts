@@ -47,6 +47,7 @@ const handleProxyReq = (proxyReq, req, res) => {
 
   attachCookies(proxyReq, req);
   attachSignatureHeaders(proxyReq, req);
+  attachRefererHeader(proxyReq);
   fixRequestBody(proxyReq, req);
 };
 
@@ -87,11 +88,20 @@ const attachSignatureHeaders = (proxyReq, req) => {
   proxyReq.setHeader(X_INTERNAL_CLIENT, process.env.INTERNAL_CLIENT_ID);
 };
 
+const attachRefererHeader = (proxyReq) => {
+  // Ensure upstream services consistently identify quran.com as the referrer
+  proxyReq.setHeader('Referer', 'https://quran.com');
+  proxyReq.setHeader('x-forwarded-proto', 'https')
+  proxyReq.setHeader('x-forwarded-port', '80')
+  proxyReq.setHeader('x-forwarded-host', 'quran.com')
+};
+
 const apiProxy = createProxyMiddleware<NextApiRequest, NextApiResponse>({
   target: process.env.API_GATEWAY_URL,
   changeOrigin: true,
   pathRewrite: { '^/api/proxy': '' }, // eslint-disable-line @typescript-eslint/naming-convention
   secure: process.env.NEXT_PUBLIC_VERCEL_ENV === 'production', // Disable SSL verification to avoid UNABLE_TO_VERIFY_LEAF_SIGNATURE error for dev
+  cookieDomainRewrite: '',
   logger: console,
 
   on: {
